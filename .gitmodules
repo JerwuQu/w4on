@@ -1,0 +1,6 @@
+[submodule "convert/midi-parser-js"]
+	path = convert/midi-parser-js
+	url = https://github.com/colxi/midi-parser-js.git
+[submodule "wav/wasm4"]
+	path = wav/wasm4
+	url = https://github.com/aduros/wasm4.git

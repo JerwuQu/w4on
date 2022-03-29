@@ -1,0 +1,55 @@
+{
+	"Kick (pulse 1)": {
+		"channel": "PULSE_1",
+		"pulseMode": "50%",
+		"amplitude": 1.0,
+		"d": 10,
+		"s": 0.8
+	},
+	"Arps (pulse 1)": {
+		"channel": "PULSE_1",
+		"pulseMode": "50%",
+		"amplitude": 0.5,
+		"arpSpeed": 1
+	},
+	"Lead (pulse 2)": {
+		"channel": "PULSE_2",
+		"pulseMode": "25%",
+		"amplitude": 0.8,
+		"d": 1,
+		"s": 0.8,
+		"r": 3
+	},
+	"Lead #2 (pulse 1)": {
+		"channel": "PULSE_1",
+		"pulseMode": "25%",
+		"amplitude": 0.8,
+		"d": 1,
+		"s": 0.8,
+		"r": 3
+	},
+	"Bass (triangle)": {
+		"channel": "TRIANGLE",
+		"amplitude": 1.0
+	},
+	"Noise": {
+		"channel": "NOISE",
+		"amplitude": 0.4,
+		"d": 2,
+		"s": 0.8,
+		"r": 1
+	},
+	"Cool OffLead": {
+		"channel": "PULSE_2",
+		"pulseMode": "50%",
+		"amplitude": 0.9,
+		"d": 1,
+		"s": 0.9,
+		"r": 10
+	},
+	"Silly Lead": {
+		"channel": "PULSE_2",
+		"pulseMode": "25%",
+		"amplitude": 0.9
+	}
+}
