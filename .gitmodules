@@ -1,0 +1,6 @@
+[submodule "live/miniaudio"]
+	path = live/miniaudio
+	url = https://github.com/mackron/miniaudio.git
+[submodule "live/wasm4"]
+	path = live/wasm4
+	url = https://github.com/aduros/wasm4.git
