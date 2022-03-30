@@ -1,17 +1,18 @@
-///////////////////////////////////////////////////////////////////////////////
-//// FL Control Channels:
-// Control channels 0-31 are 14 bit (0-16383). Using these as 7 bit will not work.
-// Control channels 32-63 are required for the above and should not be used.
-// Control channnels 64-119 are 7 bit (0-127).
-///////////////////////////////////////////////////////////////////////////////
+// Note: Only use 7-bit control channnels 64-119 for easy FL Studio compatibility
 
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "vendor.h"
 
+#define W4ON_INST_COUNT 1
+#include "../w4on.h"
+
+w4on_seq_t seq;
+
 int main(int argc, char **argv)
 {
+	printf("%lld\n", sizeof(seq));
 	// (   = ´  _ `=)
 
 	return 0;

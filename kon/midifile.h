@@ -14,5 +14,5 @@ typedef struct {
 } midi_event_t;
 
 midi_file_t *midi_open(const char *filename);
-midi_file_t *midi_close(midi_file_t *mf);
+void midi_close(midi_file_t *mf);
 bool midi_get_event(midi_file_t *mf, uint8_t track, midi_event_t *ev);
