@@ -5,7 +5,6 @@
 
 #include "vendor.h"
 
-#define W4ON_INST_COUNT 1
 #include "../w4on.h"
 
 w4on_seq_t seq;

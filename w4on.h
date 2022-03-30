@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
 // Project specs:
 // - w4on-format: Binary format used by the w4on sequencer
@@ -12,29 +13,40 @@
 // - w4on-live: Listens to MIDI events conforming to w4on-params and plays back in realtime
 
 // w4on format:
-//   There are 4 streams, one for each channel (pu1, pu2, tri, noise).
+//   There are 4 streams, one for each channel (PU1, PU2, TRI, NOI)
 //
-// Stream:
+//   On init, each channel will get an instrument according to its index (if possible).
+//   Meaning PU1 will get instrument 0 and NOI will get instrument 3 as default.
+//
+// Format:
+//   [8:instrument count]
+//   {...instruments...}
+//   {...channel streams...}
+//
+// Channel stream:
 //   [16:stream size]
 //   {...messages...}
 //
 // Instrument:
-//   [8:volume]
-//   [8:adsr attack]
-//   [8:adsr decay]
-//   [8:adsr sustain]
-//   [8:adsr release]
-//   [2:pan mode][2:pulse mode][has delay][has tremolo][has vibrato][has arpeggio]
+//   [copy instrument][has tone flags][has volume][has adsr][has delay][has tremolo][has vibrato][has arpeggio]
+//   ([8:source instrument index])
+//   ([4:RESERVED][2:pan mode][2:pulse mode])
+//   ([8:volume])
 //   (
+//     [8:adsr attack]
+//     [8:adsr decay]
+//     [8:adsr sustain]
+//     [8:adsr release]
+//   ) (
 //     [8:delay level]
 //     [2:delay ping pong][6 bit delay decay]
 //     [8:delay speed]
 //   ) (
-//     [8:tremolo depth]
 //     [8:tremolo speed]
+//     [8:tremolo depth]
 //   ) (
-//     [8:vibrato depth]
 //     [8:vibrato speed]
+//     [8:vibrato depth]
 //   ) (
 //     [8:arp speed]
 //     [8:arp gate]
@@ -43,10 +55,10 @@
 // Message IDs:
 //   0x00: Long wait (Length after)
 //   0x01-0x3F (63): Short wait
-//   0x40-0x47 (8): Setup and Use Instrument 0-7 (Instrument after)
-//   0x48-0x4F (8): Use Instrument 0-7
-//   0x50-0xA7 (88): Note (See below)
-//   0xA8-0xBF (24): Arp (followed by Length and N note codes)
+//   0x40-0x97 (88): Note (See below)
+//   0x98-0xAF (24): Arp (followed by Length and N note codes)
+//   0xB0-0xBE (15): Use instrument N
+//   0xBF: Use instrument 15+ (index after)
 //   0xC0: Set volume (byte after)
 //   0xC1-0xC2 (3): Set pan center/left/right
 //
@@ -58,18 +70,15 @@
 //
 //   "Segment" makes pitch slide during its duration
 
-#ifndef W4ON_INST_COUNT
-#define W4ON_INST_COUNT 8
-#endif
-
 typedef struct {
-	uint8_t a, d, r; // 0-127
-	uint8_t s; // 0-127 (ratio)
 	uint8_t vol; // 0-100
 	uint8_t pan; // 0-2 (center, left, right)
+
 	uint8_t pulseMode; // 0-3
 
-#ifndef W4ON_NO_FX
+	uint8_t a, d, r; // 0-127
+	uint8_t s; // 0-127 (ratio)
+
 	uint8_t delayLevel; // 0-127 (0 = disabled, ratio)
 	uint8_t delayDecay; // 0-63 (ratio)
 	uint8_t delaySpeed; // 1-127
@@ -83,7 +92,6 @@ typedef struct {
 
 	uint8_t arpSpeed; // 0-127 (0 = default of 1)
 	uint8_t	arpGate; // 0-127 (between 0 and arpSpeed)
-#endif
 } w4on_inst_t;
 
 typedef struct {
@@ -91,24 +99,14 @@ typedef struct {
 	uint8_t noteSlide; // white note to slide to during the duration of this one: 0 = none, 1-88 = midi note number
 	uint16_t noteTick; // how many ticks has passed for this note
 	uint16_t noteLength; // how long the current note is
-	w4on_inst_t currentInst; // instrument for the current note
-	w4on_inst_t insts[W4ON_INST_COUNT];
+	uint16_t dataStart, dataI, dataLen; // position in data stream
+	w4on_inst_t inst; // the instrument being used for the current note
 } w4on_chn_t;
 
-typedef int (*w4on_get_byte_fn)(void); // 0-255 for byte, negative for EOF
-
 typedef struct {
-	w4on_get_byte_fn getByteFn;
+	const uint8_t *data;
 	w4on_chn_t chns[4]; // PU1, PU2, TRI, NOI
 } w4on_seq_t;
 
-static inline void w4on_seq_init(w4on_seq_t *seq, w4on_get_byte_fn getByteFn)
-{
-	seq->getByteFn = getByteFn;
-	seq->chns[0].note = 0;
-	seq->chns[1].note = 0;
-	seq->chns[2].note = 0;
-	seq->chns[3].note = 0;
-}
-
+void w4on_seq_init(w4on_seq_t *seq, const uint8_t *data);
 void w4on_seq_tick(w4on_seq_t *seq);
