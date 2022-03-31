@@ -39,8 +39,8 @@
 //     [8:adsr release]
 //   ) (
 //     [8:delay level]
-//     [2:delay ping pong][6 bit delay decay]
 //     [8:delay speed]
+//     [2:delay ping pong][6 bit delay decay]
 //   ) (
 //     [8:tremolo speed]
 //     [8:tremolo depth]
@@ -52,23 +52,25 @@
 //     [8:arp gate]
 //   )
 //
-// Message IDs:
-//   0x00: Long wait (Length after)
-//   0x01-0x3F (63): Short wait
-//   0x40-0x97 (88): Note (See below)
-//   0x98-0xAF (24): Arp (followed by Length and N note codes)
-//   0xB0-0xBE (15): Use instrument N
-//   0xBF: Use instrument 15+ (index after)
-//   0xC0: Set volume (byte after)
-//   0xC1-0xC2 (3): Set pan center/left/right
-//
 // Length:
 //   [is extended][7:length]([8:extended length])
 //
 // Note:
-//   [is segment][is extended][6:length]([8:extended length])
-//
-//   "Segment" makes pitch slide during its duration
+//   A "segment" note makes pitch slide during its duration
+
+// Message IDs:
+// The number (if any) is how many message IDs the type spans
+// "EX" means there is additional data after the message ID
+// TODO: separate by EX and not...?
+#define W4ON_MSG_LONG_WAIT_EX 0x00 // EX: Length
+#define W4ON_MSG_SHORT_WAIT_63 0x01
+#define W4ON_MSG_NOTE_88_EX 0x40 // EX: [is segment][is extended][6:length]([8:extended length])
+#define W4ON_MSG_ARP_24_EX 0x98 // EX: Length, then N note codes (0-87)
+#define W4ON_MSG_USE_INSTRUMENT_15 0xB0
+#define W4ON_MSG_USE_INSTRUMENT_EX 0xBF // EX: [8:index]
+#define W4ON_MSG_SET_VOLUME_EX 0xC0 // EX: [8:volume]
+#define W4ON_MSG_SET_PAN_3 0xC1 // center, left, right
+#define W4ON_MSG_RESERVED 0xC4
 
 typedef struct {
 	uint8_t vol; // 0-100
