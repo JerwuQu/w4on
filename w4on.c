@@ -11,6 +11,26 @@ static inline void zeromem(void *ptr, size_t sz)
 	}
 }
 
+static uint16_t getNoteFreq(uint8_t n)
+{
+	static const uint16_t freqs[] = {
+		28160, // A10
+		29834,
+		31609,
+		33488,
+		35479,
+		37589,
+		39824,
+		42192,
+		44701,
+		47359,
+		50175,
+		53159,
+	};
+
+	return freqs[n % 12] >> (10 - n / 12);
+}
+
 static w4on_inst_t instrumentByIndex(const uint8_t *data, size_t index);
 static w4on_inst_t parseInstrument(const uint8_t *data, size_t *offset)
 {
@@ -76,6 +96,12 @@ static w4on_inst_t instrumentByIndex(const uint8_t *data, size_t index)
 	}
 }
 
+static size_t readLength(const uint8_t *data, uint16_t *offset)
+{
+	size_t a = data[(*offset)++];
+	return (a & 0x80) ? ((a & 0x7F) | data[(*offset)++]) : a;
+}
+
 void w4on_seq_init(w4on_seq_t *seq, const uint8_t *data)
 {
 	size_t instCount = data[0];
@@ -85,56 +111,87 @@ void w4on_seq_init(w4on_seq_t *seq, const uint8_t *data)
 	}
 
 	seq->data = data;
-	for (size_t i = 0; i < 4; i++) {
-		seq->chns[i].note = 0;
-		seq->chns[i].dataI = 0;
-		seq->chns[i].inst = instrumentByIndex(data, i);
+	for (size_t chI = 0; chI < 4; chI++) {
+		seq->chns[chI].note = 0;
+		seq->chns[chI].dataI = 0;
+		seq->chns[chI].inst = instrumentByIndex(data, chI);
 		size_t sz = (data[offset] << 8) | data[offset + 1];
-		seq->chns[i].dataStart = offset + 2;
-		seq->chns[i].dataLen = sz;
+		seq->chns[chI].dataStart = offset + 2;
+		seq->chns[chI].dataLen = sz;
 		offset += sz + 2;
 	}
 }
 
 void w4on_seq_tick(w4on_seq_t *seq)
 {
-	for (size_t i = 0; i < 4; i++) {
+	for (size_t chI = 0; chI < 4; chI++) {
+		w4on_chn_t *ch = &seq->chns[chI];
+
 		// Handle new events
-		if (seq->chns[i].dataI < seq->chns[i].dataLen) {
-			uint8_t msg = seq->data[seq->chns[i].dataI++];
+		while (!ch->noteTicksLeft && ch->dataI < ch->dataLen) {
+			uint8_t msg = seq->data[ch->dataI++];
 
 			if (msg >= W4ON_MSG_RESERVED) {
-				// TODO: dump error
+				// XXX
 			} else if (msg >= W4ON_MSG_SET_PAN_3) {
-				seq->chns[i].inst.pan = msg - W4ON_MSG_SET_PAN_3;
+				ch->inst.pan = msg - W4ON_MSG_SET_PAN_3;
 			} else if (msg == W4ON_MSG_SET_VOLUME_EX) {
-				seq->chns[i].inst.vol = seq->data[seq->chns[i].dataI++];
+				ch->inst.vol = seq->data[ch->dataI++];
 			} else if (msg == W4ON_MSG_USE_INSTRUMENT_EX) {
-				seq->chns[i].inst = instrumentByIndex(seq->data, seq->data[seq->chns[i].dataI++]);
+				ch->inst = instrumentByIndex(seq->data, seq->data[ch->dataI++]);
 			} else if (msg >= W4ON_MSG_USE_INSTRUMENT_15) {
-				seq->chns[i].inst = instrumentByIndex(seq->data, msg - W4ON_MSG_USE_INSTRUMENT_15);
+				ch->inst = instrumentByIndex(seq->data, msg - W4ON_MSG_USE_INSTRUMENT_15);
 			} else if (msg >= W4ON_MSG_ARP_24_EX) {
-				seq->chns[i].noteTick = 0;
-				seq->chns[i].noteSlide = 0;
-				// TODO
+				ch->note = msg - W4ON_MSG_ARP_24_EX + 1; // arp note count
+				ch->noteTick = 0;
+				ch->noteTicksLeft = readLength(seq->data, &ch->dataI);
+				ch->arpNoteDataI = ch->dataI;
+				ch->dataI += ch->note;
 			} else if (msg >= W4ON_MSG_NOTE_88_EX) {
-				seq->chns[i].note = msg - W4ON_MSG_NOTE_88_EX;
-				seq->chns[i].noteTick = 0;
-				// seq->chns[i].noteLength
-				// seq->chns[i].noteSlide
-				// TODO
+				size_t tmp = seq->data[ch->dataI++];
+				size_t length = (tmp & 0x40) ? ((tmp & 0x7F) | seq->data[ch->dataI++]) : tmp;
+				ch->noteTicksLeft += length;
+				if (tmp & 0x80) {
+					ch->noteSlide = msg - W4ON_MSG_NOTE_88_EX;
+					// TODO
+				} else {
+					ch->noteTick = 0;
+					ch->note = msg - W4ON_MSG_NOTE_88_EX;
+					ch->noteSlide = 0;
+				}
 			} else if (msg >= W4ON_MSG_SHORT_WAIT_63) {
-				seq->chns[i].note = 0;
-				seq->chns[i].noteTick = 0;
-				seq->chns[i].noteLength = W4ON_MSG_SHORT_WAIT_63 - msg;
+				ch->note = 0;
+				ch->noteTicksLeft = W4ON_MSG_SHORT_WAIT_63 - msg;
 			} else if (msg == W4ON_MSG_LONG_WAIT_EX) {
-				seq->chns[i].note = 0;
-				seq->chns[i].noteTick = 0;
-				// TODO
+				ch->note = 0;
+				ch->noteTicksLeft = readLength(seq->data, &ch->dataI);
 			}
 		}
 
 		// Playback
 		// (   = ´  _ `=)
+		// Determine note param
+		if (ch->arpNoteDataI) {
+		} else if (ch->noteSlide) {
+		} else if (ch->note) {
+		}
+
+		// ADSR emulation is needed for realtime playback and to have segments following ADSR
+		if (ch->noteTicksLeft) {
+			// TODO note attack/sustain/decay
+			ch->noteTicksLeft--;
+		} else {
+			// TODO note release
+		}
+
+		// Refresh tone every tick
+		// tone(freq,
+		// 		1 + (adsr slope),
+		// 		adsr level,
+		// 		chI | (ch->inst.pulseMode << 2) | (ch->inst.pan << 4));
+
+		if (ch->note) {
+			ch->noteTick++;
+		}
 	}
 }

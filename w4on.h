@@ -62,10 +62,11 @@
 // The number (if any) is how many message IDs the type spans
 // "EX" means there is additional data after the message ID
 // TODO: separate by EX and not...?
+// TODO: move to "internal" header
 #define W4ON_MSG_LONG_WAIT_EX 0x00 // EX: Length
 #define W4ON_MSG_SHORT_WAIT_63 0x01
 #define W4ON_MSG_NOTE_88_EX 0x40 // EX: [is segment][is extended][6:length]([8:extended length])
-#define W4ON_MSG_ARP_24_EX 0x98 // EX: Length, then N note codes (0-87)
+#define W4ON_MSG_ARP_24_EX 0x98 // Starts at 1, EX: Length, then N note codes (0-87)
 #define W4ON_MSG_USE_INSTRUMENT_15 0xB0
 #define W4ON_MSG_USE_INSTRUMENT_EX 0xBF // EX: [8:index]
 #define W4ON_MSG_SET_VOLUME_EX 0xC0 // EX: [8:volume]
@@ -97,10 +98,11 @@ typedef struct {
 } w4on_inst_t;
 
 typedef struct {
-	uint8_t note; // which note: 0 = none, 1-88 = midi note number
+	uint8_t note; // which note: 0 = none, 1-88 = midi note number - *if arp is active* it instead acts as "arp note count"
 	uint8_t noteSlide; // white note to slide to during the duration of this one: 0 = none, 1-88 = midi note number
 	uint16_t noteTick; // how many ticks has passed for this note
-	uint16_t noteLength; // how long the current note is
+	uint16_t noteTicksLeft; // how long the current note is
+	uint16_t arpNoteDataI; // 0 = no arp active, otherwise index to note list
 	uint16_t dataStart, dataI, dataLen; // position in data stream
 	w4on_inst_t inst; // the instrument being used for the current note
 } w4on_chn_t;
