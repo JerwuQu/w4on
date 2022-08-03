@@ -27,6 +27,9 @@ const W4ON_MSG_RESERVED = 0xf6;
 const CHANNEL_NAMES = {'PULSE_1': 0, 'PULSE_2': 1, 'TRIANGLE': 2, 'NOISE': 3};
 const PULSE_MODES = {'12.5%': 0, '25%': 1, '50%': 2, '75%': 3};
 // - - - - -
+// Used for tempo adjustment
+const NOTES_PER_BEAT = 4; // TODO: customizable
+// - - - - -
 const pushExtLength = (arr, len) => {
     if (len > 0x7fff) {
         throw `Length too long`;
@@ -50,8 +53,11 @@ if (!midiInFile || !instrSpecFile) {
 const instrSpec = JSON.parse(fs.readFileSync(instrSpecFile));
 const midi = midiParser.parse(fs.readFileSync(midiInFile));
 
+let tickInaccuracy = 0;
 const trackInfos = [];
 const trackDataBufs = [];
+let originalBPM = null;
+let midiTickDivisor = null;
 midi.track.forEach(track => {
     // Iterate over midi events to get all notes
     const rawNotes = [];
@@ -59,9 +65,22 @@ midi.track.forEach(track => {
     let trackName = 'Unnamed';
     let tick = 0;
     track.event.forEach(event => {
+        if (event.deltaTime > 0 && !originalBPM) {
+            throw `BPM needs to be set in MIDI file`;
+        }
         tick += event.deltaTime;
         if (event.type === 255 && event.metaType === 3) { // Track Name
             trackName = event.data;
+        } else if (event.type === 255 && event.metaType === 81) { // Tempo
+            const newBPM = 60000000 / event.data;
+            if (newBPM !== originalBPM) {
+                if (originalBPM) throw `BPM changes are not allowed`;
+                originalBPM = newBPM;
+                const bestTickWait = Math.round(3600 / (originalBPM * NOTES_PER_BEAT));
+                const bestBPM = 3600 / (bestTickWait * NOTES_PER_BEAT);
+                midiTickDivisor = midi.timeDivision / NOTES_PER_BEAT / bestTickWait;
+                console.log('Original BPM:', originalBPM, ' Best tick wait:', bestTickWait, ' Best BPM:', bestBPM, ' Midi tick divisor:', midiTickDivisor);
+            }
         } else if (event.type === 9 && event.data[1] > 0) { // Note On
             const note = event.data[0];
             noteStarts[note] = {tick, velocity: event.data[1]};
@@ -100,13 +119,10 @@ midi.track.forEach(track => {
     });
 
     // Tick division
-    let tickRemainder = 0;
-    const divisor = 4.8; // TODO: XXX: temp
     for (const note of rawNotes) {
-        const tickFrac = note.tick / divisor + tickRemainder;
-        tickRemainder = tickFrac - Math.round(tickFrac);
-        note.tick = Math.round(tickFrac);
-        note.length = Math.round(note.length / divisor);
+        tickInaccuracy += Math.abs((note.tick / midiTickDivisor) - Math.round(note.tick / midiTickDivisor));
+        note.tick = Math.round(note.tick / midiTickDivisor);
+        note.length = Math.round(note.length / midiTickDivisor);
     }
 
     // Get instrument for track
@@ -315,7 +331,8 @@ const fileData = new Uint8Array(fileDataBuf);
 
 // Print stats
 for (let i = 0; i < trackDataBufs.length; i++) {
-    console.log(`Track #${i + 1}/${trackDataBufs.length} (${trackInfos[i].name})
+    console.log(`
+Track #${i + 1}/${trackDataBufs.length} (${trackInfos[i].name})
     data size: ${trackDataBufs[i].length}
     channel flags: ${trackDataBufs[i][0]}
     notes: ${trackInfos[i].notes}
@@ -325,10 +342,12 @@ for (let i = 0; i < trackDataBufs.length; i++) {
     first tick: ${trackInfos[i].firstTick}, last tick: ${trackInfos[i].lastTick}
     changes:
         velocity: ${trackInfos[i].changes.velocity}
-        pan: ${trackInfos[i].changes.pan}
-    `);
+        pan: ${trackInfos[i].changes.pan}`);
 }
-console.log(`Total data size: ${fileData.length}\n`)
+console.log(`
+Total data size: ${fileData.length}
+Tick inaccuracy: ${tickInaccuracy}
+`)
 
 if (w4onOutFile) {
     fs.writeFileSync(w4onOutFile, Buffer.from(fileData), 'binary');
