@@ -2,17 +2,12 @@
 
 extern void tone(uint32_t frequency, uint32_t duration, uint32_t volume, uint32_t flags);
 
-#ifndef W4ON_TRACEF
-// TODO: default to tracef or printf depending on platform
-#define W4ON_TRACEF(...)
+#ifdef DEBUG
+	// TODO: set depending on platform
+	#define W4ON_TRACEF tracef
+#else
+	#define W4ON_TRACEF(...)
 #endif
-
-static inline void zeromem(void *ptr, size_t sz)
-{
-	while (sz--) {
-		((char*)ptr)[sz] = 0;
-	}
-}
 
 static uint16_t getNoteFreq(uint8_t n)
 {
