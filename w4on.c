@@ -140,7 +140,7 @@ bool w4on_seq_tick(w4on_seq_t *seq)
 		}
 
 		if (trk->eventTicksLeft) {
-			playing = true;
+			playing = true; // TODO: consider note release
 
 			// Arps
 			if (trk->arpNoteDataI && (trk->eventTick % trk->arpSpeed) == 0) {

@@ -64,6 +64,7 @@ midi.track.forEach(track => {
     const noteStarts = [];
     let trackName = 'Unnamed';
     let tick = 0;
+    let pan = 0;
     track.event.forEach(event => {
         if (event.deltaTime > 0 && !originalBPM) {
             throw `BPM needs to be set in MIDI file`;
@@ -98,10 +99,12 @@ midi.track.forEach(track => {
                 length: tick - startTick,
                 note: note - 21, // This means notes range from A0 (0) to C8 (87)
                 velocity: noteStart.velocity,
-                pan: 0, // TODO
+                pan: pan,
             });
+        } else if (event.type === 11 && event.data[0] == 10) { // Pan
+            pan = event.data[1] < 43 ? 1 : (event.data[1] > 84 ? 2 : 0);
         } else {
-            // console.log(`Unhandled event type ${event.type}`)
+            // console.log(`Unhandled event type: ${event.type}, data: ${event.data}`)
         }
     });
 

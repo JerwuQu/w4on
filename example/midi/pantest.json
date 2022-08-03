@@ -1,0 +1,9 @@
+{
+	"Main": {
+		"channel": "PULSE_1",
+		"pulseMode": "50%",
+		"amplitude": 0.5,
+		"d": 10,
+		"s": 0.8
+	}
+}

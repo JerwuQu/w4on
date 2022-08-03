@@ -2,6 +2,7 @@
 #include "../../w4on.c"
 
 #include "../midi/wasm4nia_theme.c"
+#include "../midi/pantest.c"
 
 w4on_seq_t song;
 
