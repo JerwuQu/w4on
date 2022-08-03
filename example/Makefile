@@ -43,6 +43,10 @@ endif
 
 all: build/cart.wasm
 
+.PHONY: midi
+midi:
+	make -C midi
+
 # Link cart.wasm from all object files and run wasm-opt
 build/cart.wasm: $(OBJECTS)
 	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS)
@@ -55,17 +59,18 @@ endif
 endif
 
 # Compile C sources
-build/%.o: src/%.c
+build/%.o: midi src/%.c
 	@$(MKDIR_BUILD)
-	$(CC) -c $< -o $@ $(CFLAGS)
+	$(CC) -c $(word 2,$^) -o $@ $(CFLAGS)
 
 # Compile C++ sources
-build/%.o: src/%.cpp
+build/%.o: midi src/%.cpp
 	@$(MKDIR_BUILD)
-	$(CXX) -c $< -o $@ $(CFLAGS)
+	$(CXX) -c $(word 2,$^) -o $@ $(CFLAGS)
 
 .PHONY: clean
 clean:
 	$(RMDIR) build
+	make -C midi clean
 
 -include $(DEPS)

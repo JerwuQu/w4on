@@ -1,3 +1,3 @@
 /build
-/src/wasm4nia_theme.h
-/src/wasm4nia_theme.h.w4on
+/midi/*.w4on
+/midi/*.c
