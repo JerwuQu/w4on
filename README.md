@@ -78,3 +78,7 @@ e.g.: `"freq": "value * 0.25 + 1"`, `"duration": "30"`
 - decay (ticks)
 - sustain (0.0 - 1.0)
 - release (ticks)
+
+# License
+
+All code related to w4on (e.g. `w4on.h`, `w4on.c`) is licensed under MIT. See the LICENSE file for more details.
