@@ -44,7 +44,7 @@ typedef struct {
 
 typedef struct {
 	const uint8_t *data;
-	w4on_track_t tracks[8];
+	w4on_track_t tracks[8]; // TODO: either make this configurable, or make the converter crunch everything into 8 tracks in an optimal way
 } w4on_seq_t;
 
 // TODO: enable looping
