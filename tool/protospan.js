@@ -1,9 +1,12 @@
 const proto = [
 	// Note
 	['LONG_WAIT', 1, 'ExLength + W4ON_MSG_COUNT_SHORT_WAIT'],
-	['SHORT_WAIT', 128],
-	['NOTE', 88, '[1:is segment][1:is extended][6:length]([8:extended])'],
-	['ARP', 20, 'ExLength + 2, [notes...]'],
+	['SHORT_WAIT', 120],
+	['NOTE', 88, 'ExLength'],
+	// next n+1 notes after the first one will be segments
+	// note that the first must come immediately after in stream
+	['SEGMENTS', 16],
+	['ARP', 16, 'ExLength + 2, [notes...]'],
 	// Instrument adjustments
 	['SET_VOLUME', 1, '[8:volume]'],
 	['SET_A', 1, '[8:A]'],

@@ -38,7 +38,7 @@ You're kinda on your own for now...
 
 ### Messages
 
-Messages are comprised of one or more bytes and are (for now) mostly documented as #defines in w4on.h.
+Messages are comprised of one or more bytes and are (for now) mostly documented as `#defines` in `w4on.h`. Note that the format is currently not stable.
 
 Lengths are given in WASM-4 ticks, and most parameters are the same as in WASM-4 (pan, pulse mode, etc).
 

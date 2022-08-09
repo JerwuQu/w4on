@@ -37,21 +37,21 @@ static size_t readLength(const uint8_t *data, uint16_t *offset)
 static void instTone(w4on_seq_t *seq, uint8_t trkI, bool isSegment, uint32_t freq, size_t length)
 {
 	w4on_track_t *trk = &seq->tracks[trkI];
-	if (isSegment) {
-		tone(
-			freq,
-			(length + 1 /* +1 to prevent pops */) | (trk->r << 8),
-			(trk->volume * trk->s / 255),
-			trk->channel | (trk->pulseMode << 2) | (trk->pan << 4)
-		);
-	} else {
-		tone(
-			freq,
-			(length - trk->a - trk->d + 1 /* +1 to prevent pops */) | (trk->r << 8) | (trk->d << 16) | (trk->a << 24),
-			(trk->volume * trk->s / 255) | (trk->volume << 8),
-			trk->channel | (trk->pulseMode << 2) | (trk->pan << 4)
-		);
+	uint32_t lengthMod = length | (trk->r << 8); // default to only duration and release
+	if (!isSegment) {
+		// add attack and decay to normal notes
+		lengthMod = (lengthMod - trk->a - trk->d) | (trk->d << 16) | (trk->a << 24);
 	}
+	if (trk->segmentsLeft) {
+		// prevent pops between segments
+		lengthMod += 2;
+	}
+	tone(
+		freq,
+		lengthMod,
+		(trk->volume * trk->s / 255) | (trk->volume << 8),
+		trk->channel | (trk->pulseMode << 2) | (trk->pan << 4)
+	);
 }
 
 void w4on_seq_init(w4on_seq_t *seq, const uint8_t *data)
@@ -93,6 +93,7 @@ bool w4on_seq_tick(w4on_seq_t *seq)
 	size_t trkCount = seq->data[0];
 	for (size_t trkI = 0; trkI < trkCount; trkI++) {
 		w4on_track_t *trk = &seq->tracks[trkI];
+		uint8_t segmentCount = 0;
 
 		// Handle new events
 		while (!trk->eventTicksLeft && trk->dataI < trk->dataEndI) {
@@ -121,15 +122,19 @@ bool w4on_seq_tick(w4on_seq_t *seq)
 				trk->eventTicksLeft = readLength(seq->data, &trk->dataI);
 				trk->arpNoteDataI = trk->dataI;
 				trk->dataI += trk->eventValue;
+			} else if (msg >= W4ON_MSG_SPAN_SEGMENTS) {
+				segmentCount = msg - W4ON_MSG_SPAN_SEGMENTS + 1; // NOTE: needs to surivive till first note comes (meaning immediately)
 			} else if (msg >= W4ON_MSG_SPAN_NOTE_EX) {
 				uint8_t newNote = msg - W4ON_MSG_SPAN_NOTE_EX;
-				size_t tmp = seq->data[trk->dataI++];
-				size_t length = (tmp & 0x40) ? (((tmp & 0x3F) << 8) | seq->data[trk->dataI++]) : (tmp & 0x7F);
-				trk->eventTicksLeft = length;
-				if (tmp & 0x80) { // segment/slide
-					instTone(seq, trkI, true, getNoteFreq(trk->eventValue) | (getNoteFreq(newNote) << 16), length);
+				trk->eventTicksLeft = readLength(seq->data, &trk->dataI);
+				if (trk->segmentsLeft) { // segment/slide
+					trk->segmentsLeft--;
+					instTone(seq, trkI, true, getNoteFreq(trk->eventValue) | (getNoteFreq(newNote) << 16), trk->eventTicksLeft);
 				} else {
-					instTone(seq, trkI, false, getNoteFreq(newNote), length);
+					instTone(seq, trkI, false, getNoteFreq(newNote), trk->eventTicksLeft);
+					if (segmentCount) {
+						trk->segmentsLeft = segmentCount;
+					}
 				}
 				trk->eventValue = newNote;
 			} else if (msg >= W4ON_MSG_SPAN_SHORT_WAIT) {
