@@ -306,6 +306,7 @@ midi.track.forEach(track => {
         if (note.arp && note.arp.length > 0) { // Arp
             trkInfo.arps++;
             trkInfo.arpNotes += note.arp.length;
+            if (note.arp.length - 2 >= W4ON_MSG_COUNT_ARP) throw 'Too many arp notes';
             trackDataBuf.push(W4ON_MSG_SPAN_ARP_EX + note.arp.length - 2);
             pushExtLength(trackDataBuf, note.length);
             for (const arpNote of note.arp) {
