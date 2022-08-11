@@ -9,6 +9,9 @@ extern void tone(uint32_t frequency, uint32_t duration, uint32_t volume, uint32_
 	#define W4ON_TRACEF(...)
 #endif
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
 static uint16_t getNoteFreq(uint8_t n)
 {
 	static const uint16_t freqs[] = {
@@ -37,19 +40,28 @@ static size_t readLength(const uint8_t *data, uint16_t *offset)
 static void instTone(w4on_seq_t *seq, uint8_t trkI, bool isSegment, uint32_t freq, size_t length)
 {
 	w4on_track_t *trk = &seq->tracks[trkI];
-	uint32_t lengthMod = length | (trk->r << 8); // default to only duration and release
-	if (!isSegment) {
-		// add attack and decay to normal notes
-		lengthMod = (lengthMod - trk->a - trk->d) | (trk->d << 16) | (trk->a << 24);
+	uint32_t lengthParam;
+	if (isSegment) {
+		// segment notes only have release as to not retrigger attack/decay
+		lengthParam = length | (trk->r << 8);
+	} else {
+		// normal notes will have full ADSR
+		// NOTE: the release is not needed if there are segments after, but it also doesn't hurt, so it is kept for brevity
+		// NOTE: this also adjust ADSR to behave more like normal ADSR
+		const int32_t a = MIN(length, trk->a);
+		const int32_t d = MAX(0, MIN((int32_t)length - a, (int32_t)trk->d));
+		const int32_t len = MAX(0, (int32_t)length - a - d);
+		lengthParam = len | (trk->r << 8) | (d << 16) | (a << 24);
 	}
 	if (trk->segmentsLeft) {
 		// prevent pops between segments
-		lengthMod += 2;
+		lengthParam += 2;
 	}
+	const size_t s = (size_t)trk->volume * (size_t)trk->s / 255;
 	tone(
 		freq,
-		lengthMod,
-		(trk->volume * trk->s / 255) | (trk->volume << 8),
+		lengthParam,
+		s | (trk->volume << 8),
 		trk->channel | (trk->pulseMode << 2) | (trk->pan << 4)
 	);
 }
