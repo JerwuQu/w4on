@@ -289,20 +289,6 @@ midi.track.forEach(track => {
         }
 
         // - Insert note
-        const pushNote = (note, length) => {
-            if (isSegment) {
-                trkInfo.segs++;
-            } else {
-            }
-
-            if (length <= 0x3f) {
-                trackDataBuf.push((isSegment << 7) | (0 << 6) | length);
-            } else {
-                if (length > 0x3fff) throw `Note too long`;
-                trackDataBuf.push((isSegment << 7) | (1 << 6) | (length >> 8));
-                trackDataBuf.push(length & 0xff);
-            }
-        };
         if (note.arp && note.arp.length > 0) { // Arp
             trkInfo.arps++;
             trkInfo.arpNotes += note.arp.length;
