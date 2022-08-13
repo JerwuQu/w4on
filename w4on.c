@@ -1,6 +1,10 @@
 #include "w4on.h"
 
-extern void tone(uint32_t frequency, uint32_t duration, uint32_t volume, uint32_t flags);
+#ifndef W4ON_TONE_EXTERN_NAME
+#define W4ON_TONE_EXTERN_NAME tone
+#endif
+
+extern void (W4ON_TONE_EXTERN_NAME)(uint32_t frequency, uint32_t duration, uint32_t volume, uint32_t flags);
 
 #ifdef DEBUG
 	// TODO: set depending on platform
@@ -58,7 +62,7 @@ static void instTone(w4on_seq_t *seq, uint8_t trkI, bool isSegment, uint32_t fre
 		lengthParam += 2;
 	}
 	const size_t s = (size_t)trk->volume * (size_t)trk->s / 255;
-	tone(
+	W4ON_TONE_EXTERN_NAME(
 		freq,
 		lengthParam,
 		s | (trk->volume << 8),

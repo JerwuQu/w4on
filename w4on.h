@@ -53,4 +53,3 @@ typedef struct {
 // TODO: enable looping
 void w4on_seq_init(w4on_seq_t *seq, const uint8_t *data);
 bool w4on_seq_tick(w4on_seq_t *seq); // TODO: master volume
-void w4on_seq_tone_override(w4on_seq_t *seq, uint32_t frequency, uint32_t duration, uint32_t volume, uint32_t flags); // TODO
