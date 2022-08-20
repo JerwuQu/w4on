@@ -92,8 +92,10 @@ void w4on_seq_init(w4on_seq_t *seq, const uint8_t *data)
 		trk->volume = 100;
 		trk->a = trk->d = trk->r = 0;
 		trk->s = 255;
+		trk->pan = 0;
 		trk->arpSpeed = 1;
 
+		trk->segmentsLeft = 0;
 		trk->arpNoteDataI = 0;
 		trk->eventValue = 0;
 		trk->eventTick = 0;
