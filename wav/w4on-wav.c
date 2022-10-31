@@ -30,15 +30,34 @@ void fwrite_i32(FILE *f, int32_t n)
 	assert(fwrite(&le, 4, 1, f));
 }
 
+void usage()
+{
+	fprintf(stderr, "w4on-wav [-l<loops>] <in.w4on> <out.wav>\n");
+	exit(1);
+}
+
 int main(int argc, char **argv)
 {
-	if (argc != 3) {
-		fprintf(stderr, "%s <in.w4on> <out.wav>\n", argv[0]);
-		return 1;
+	size_t argi = 1;
+	size_t loops = 0;
+	while (argi < argc && argv[argi][0] == '-') {
+		if (argv[argi][1] == 'l') {
+			assert(sscanf(argv[argi] + 2, "%ld", &loops) == 1);
+			assert(loops >= 1);
+		} else {
+			usage();
+		}
+
+		argi++;
+	}
+	if (argc - argi != 2) {
+		usage();
 	}
 
+	loops++; // always plays at least once
+
 	// Read w4on file
-	FILE *w4onFile = fopen(argv[1], "rb");
+	FILE *w4onFile = fopen(argv[argi++], "rb");
 	assert(w4onFile);
 	fseek(w4onFile, 0, SEEK_END);
 	const size_t w4onSz = ftell(w4onFile);
@@ -48,41 +67,47 @@ int main(int argc, char **argv)
 	assert(fread(w4onData, w4onSz, 1, w4onFile));
 	fclose(w4onFile);
 
-	// Init state
+	// Init WASM-4 APU
 	w4_apuInit();
-	w4on_seq_t seq;
-	w4on_seq_init(&seq, w4onData);
 
-	// Tick
+	// Sample buffer
 	size_t bufCap = 1 << 16;
 	size_t bufSz = 0; // will be Subchunk2Size
 	uint8_t *buf = malloc(bufCap);
 	assert(buf);
-	while (w4on_seq_tick(&seq)) {
-		// Get new samples
-		int16_t samples[SAMPLES_PER_TICK * CHANNELS];
-		w4_apuWriteSamples(samples, SAMPLES_PER_TICK);
-		if (bufSz + TICK_SAMPLE_CHUNK_SZ > bufCap) {
-			bufCap <<= 1;
-			buf = realloc(buf, bufCap);
-			assert(buf);
-		}
 
-		// Swap to LE order
-		for (size_t i = 0; i < sizeof(samples) / sizeof(samples[0]); i++) {
-			samples[i] = htole16(samples[i]);
-		}
+	// Loop
+	for (size_t loopI = 0; loopI < loops; loopI++) {
+		w4on_seq_t seq;
+		w4on_seq_init(&seq, w4onData);
 
-		// Write
-		memcpy(buf + bufSz, samples, TICK_SAMPLE_CHUNK_SZ);
-		bufSz += TICK_SAMPLE_CHUNK_SZ;
+		// Tick
+		while (w4on_seq_tick(&seq)) {
+			// Get new samples
+			int16_t samples[SAMPLES_PER_TICK * CHANNELS];
+			w4_apuWriteSamples(samples, SAMPLES_PER_TICK);
+
+			// Swap to LE order
+			for (size_t i = 0; i < sizeof(samples) / sizeof(samples[0]); i++) {
+				samples[i] = htole16(samples[i]);
+			}
+
+			// Write
+			if (bufSz + TICK_SAMPLE_CHUNK_SZ > bufCap) {
+				bufCap <<= 1;
+				buf = realloc(buf, bufCap);
+				assert(buf);
+			}
+			memcpy(buf + bufSz, samples, TICK_SAMPLE_CHUNK_SZ);
+			bufSz += TICK_SAMPLE_CHUNK_SZ;
+		}
 	}
 
 	// Write wav file
 	// http://soundfile.sapp.org/doc/WaveFormat/
-	FILE *wavFile = fopen(argv[2], "wb");
+	FILE *wavFile = fopen(argv[argi++], "wb");
 	assert(wavFile);
-	
+
 	// - RIFF Header
 	assert(fwrite("RIFF", 4, 1, wavFile));
 	fwrite_i32(wavFile, 36 + bufSz);
