@@ -60,12 +60,12 @@ const midi = midiParser.parse(fs.readFileSync(midiInFile));
 let tickInaccuracy = 0;
 const trackInfos = [];
 const trackDataBufs = [];
+const trackNotes = [];
 let originalBPM = null;
 let midiTickDivisor = null;
 midi.track.forEach(track => {
     // Iterate over midi events to get all notes
-    const rawNotes = [];
-    const noteStarts = [];
+    const channelInfos = {};
     let trackName = 'Unnamed';
     let tick = 0;
     let pan = 0;
@@ -88,14 +88,19 @@ midi.track.forEach(track => {
             }
         } else if (event.type === 9 && event.data[1] > 0) { // Note On
             const note = event.data[0];
+            const channel = event.channel;
+            channelInfos[channel] ??= { rawNotes: [], noteStarts: [] }
+            const { noteStarts } = channelInfos[channel];
             noteStarts[note] = {tick, velocity: event.data[1]};
-        } else if (event.type === 8) { // Note off
+        } else if (event.type === 8 || (event.type === 9 && event.data[1] == 0)) { // Note off
             const note = event.data[0];
             if (note < 21 || note > 127) {
                 throw `Invalid note number ${note} (${trackName})`;
             } else if (note > 108) {
                 throw `Only the 88 piano notes are allowed (${trackName})`;
             }
+            const channel = event.channel;
+            const { rawNotes, noteStarts } = channelInfos[channel];
             const noteStart = noteStarts[note];
             const startTick = noteStart.tick;
             rawNotes.push({
@@ -111,7 +116,20 @@ midi.track.forEach(track => {
             // console.log(`Unhandled event type: ${event.type}, data: ${event.data}`)
         }
     });
+    const rawChannels = Object.keys(channelInfos);
+    if (rawChannels.length == 1) {
+        const channel = rawChannels[0];
+        const { rawNotes } = channelInfos[channel];
+        trackNotes.push({ rawNotes, trackName });
+        return;
+    }
+    for (const channel of rawChannels) {
+        const { rawNotes } = channelInfos[channel];
+        trackNotes.push({ rawNotes, trackName: `${trackName} (channel ${channel})` });
+    }
+});
 
+trackNotes.forEach(({ rawNotes, trackName }) => {
     // Sanity
     if (!rawNotes.length) return;
 
