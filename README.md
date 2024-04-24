@@ -1,3 +1,9 @@
+- - -
+
+# w4on is now [w4on2](https://github.com/JerwuQu/w4on2)!
+
+- - -
+
 # w4on
 
 WIPs all around
